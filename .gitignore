@@ -1,0 +1,18 @@
+# Virtual environment - NEVER commit this
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Firebase credentials - NEVER commit this
+firebase/serviceAccountKey.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
