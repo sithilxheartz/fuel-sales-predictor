@@ -257,37 +257,40 @@ def trigger_retrain(background_tasks: BackgroundTasks):
 def _run_retrain_pipeline():
     """Background task: fetch Firebase data → preprocess → retrain → reload."""
     global HISTORICAL_DATA, MODELS
-
     try:
         print("\n🔄 Retraining pipeline started...")
 
-        # Step 1: Fetch new data from Firebase
+        # Step 1: Fetch new data from Firebase and merge with existing
         try:
-            from scripts.retrain import fetch_and_merge_firebase_data
-            fetch_and_merge_firebase_data()
-            data_path = "data/sales_data_merged.csv"
+            from scripts.retrain import fetch_from_firestore, merge_with_historical, save_merged
+            firebase_df = fetch_from_firestore()
+            merged_df   = merge_with_historical(firebase_df)
+            save_merged(merged_df, 'data/sales_data_merged.csv')
+            data_path = 'data/sales_data_merged.csv'
+            print("✅ Firebase data fetched and merged")
         except Exception as e:
             print(f"   ⚠️  Firebase fetch failed ({e}), retraining on existing data")
-            data_path = "data/sales_data_clean.csv"
+            data_path = 'data/sales_data_clean.csv'
 
         # Step 2: Preprocess
+        from scripts.preprocess import load_and_clean_data, save_clean_data
         df = load_and_clean_data(data_path)
-        save_clean_data(df, "data/sales_data_clean.csv")
+        save_clean_data(df, 'data/sales_data_clean.csv')
 
         # Step 3: Retrain all 4 models
         from scripts.train_models import train_all_models
         train_all_models()
 
-        # Step 4: Reload into memory so new predictions use updated models
-        MODELS = load_models("models")
-        HISTORICAL_DATA = pd.read_csv("data/sales_data_clean.csv")
+        # Step 4: Reload into memory
+        MODELS = load_models('models')
+        HISTORICAL_DATA = pd.read_csv('data/sales_data_clean.csv')
         HISTORICAL_DATA['date'] = pd.to_datetime(HISTORICAL_DATA['date'])
 
-        RETRAIN_STATUS["running"] = False
-        RETRAIN_STATUS["last_result"] = "success"
+        RETRAIN_STATUS['running'] = False
+        RETRAIN_STATUS['last_result'] = 'success'
         print("✅ Retraining complete!\n")
 
     except Exception as e:
-        RETRAIN_STATUS["running"] = False
-        RETRAIN_STATUS["last_result"] = f"failed: {str(e)}"
+        RETRAIN_STATUS['running'] = False
+        RETRAIN_STATUS['last_result'] = f'failed: {str(e)}'
         print(f"❌ Retraining failed: {e}\n")
